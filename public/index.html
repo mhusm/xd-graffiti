@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+
+    <!-- 1. Load platform support before any code that touches the DOM. -->
+    <!--    <script src="http://129.132.114.114/js/remote.js"></script>  -->
+    <script src="bower_components/webcomponentsjs/webcomponents.min.js"></script>
+    <link rel="import" href="bower_components/polymer/polymer.html">
+    <!-- 2. Load the component using an HTML Import -->
+
+    <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-synchronised.html">
+    <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-connect.html">
+    <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-connection.html">
+    <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-url-pairing.html">
+    <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-qr.html">
+    <link rel="import" href="bower_components/iron-selector/iron-selector.html">
+
+    <link rel="import" href="bower_components/xdmvcclient/layouts/controller-layout.html">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+
+    <title></title>
+</head>
+<body>
+<style>
+    html,body {
+        font-family: 'RobotoDraft', sans-serif;
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+
+</style>
+
+<dom-module id="my-app">
+    <template>
+        <xdmvc-connection ></xdmvc-connection>
+
+        <xdmvc-synchronised id="sync"
+                            objects='{{synced}}'
+                            other-devices="{{others}}">
+        </xdmvc-synchronised>
+        <controller-layout>
+            <div class="controller">
+                <xdmvc-url-pairing connector="controller" connectee="viewer" ></xdmvc-url-pairing>
+                <div id="landscape">
+                    <canvas id="canvascontroller" on-track="draw"/>
+                </div>
+                <div id="portrait">
+
+
+                </div>
+
+            </div>
+            <div class="viewer">
+                <div id="qr">
+                    <xdmvc-url-pairing connector="controller" connectee="viewer"  url="{{url}}"></xdmvc-url-pairing>
+                    <xdmvc-qr url="[[url]]" message="Scan the QR code to pair to this screen."></xdmvc-qr>
+                </div>
+                <canvas id="canvas"></canvas>
+            </div>
+        </controller-layout>
+        <style>
+
+            #qr {
+                position: absolute;
+                z-index: 1;
+            }
+
+            #portrait {
+                height: 100vh;
+                overflow: auto;
+            }
+
+            @media (orientation: landscape) {
+                #portrait {
+                    display: none;
+                }
+            }
+            @media (orientation: portrait) {
+                #landscape {
+                    display: none;
+                }
+            }
+
+            canvas {
+                height: 100vh;
+                width: 100vw;
+            }
+        </style>
+
+   </template>
+</dom-module>
+<script>
+
+
+    HTMLImports.whenReady(function () {
+
+        Polymer({
+            is: "my-app",
+            properties: {
+
+                synced: {
+                    type: Object,
+                    value: function(){ return { position: { coordinates: {prevX: -1, prevY: -1, x: -1, y: -1 }},
+                      drawing : { active: false},
+                      style: {color: "black", stroke: 2}
+                    } } ,
+                    notify: true
+                },
+                context: Object,
+                others: Array,
+                prevX: Number,
+                prevY: Number
+
+            },
+            observers: ["othersChanged(others.*)"],
+
+            draw: function(event) {
+                let x = 0;
+                let y = 0;
+                if (event.detail.state === "end") {
+                    this.prevX = 0;
+                    this.prevY = 0;
+                    console.log("end");
+                } else if (event.detail.state === "start") {
+                    console.log("start");
+                    this.prevX = event.detail.x;
+                    this.prevY = event.detail.y;
+                }else  {
+                    x = event.detail.x;
+                    y = event.detail.y;
+                    this.context.beginPath();
+                    this.context.moveTo(this.prevX, this.prevY);
+                    this.context.lineTo(x, y);
+                    this.context.strokeStyle = "black";
+                    this.context.lineWidth = "2";
+                    this.context.stroke();
+                    this.context.closePath();
+                    this.set("synced.position.coordinates", {prevX: this.prevX, prevY: this.prevY, x: x, y:y});
+                    this.prevX = x;
+                    this.prevY = y;
+                }
+            },
+
+            othersChanged: function(cr){
+                let positionSubpath = cr.path.indexOf('.data.position.coordinates');
+                if (positionSubpath > -1) {
+                    let itempath = cr.path.substring(0, positionSubpath);
+                    let item = this.get(itempath);
+                    let index = cr.base.indexOf(item);
+                    let position = item.data.position.coordinates;
+                    if (position.x > -1 && position.y > -1 && position.prevX >-1 && position.prevY > -1) {
+                        this.context.beginPath();
+                        this.context.moveTo(position.prevX, position.prevY);
+                        this.context.lineTo(position.x, position.y);
+                        this.context.strokeStyle = "black";
+                        this.context.lineWidth = "2";
+                        this.context.stroke();
+                        this.context.closePath();
+                    }
+
+                }
+            },
+
+
+
+            attached: function () {
+                // for some reason, the canvas has no width initially.
+                this.async( function() {
+                    this.$.canvascontroller.width  = this.$.canvascontroller.clientWidth;
+                    this.$.canvascontroller.height = this.$.canvascontroller.clientHeight;
+                    this.$.canvas.width  = this.$.canvas.clientWidth;
+                    this.$.canvas.height = this.$.canvas.clientHeight;
+                }, 100);
+                console.log(this.context);
+                XDmvc.on("XDroleAdded", function(role) {
+                    if (role === "controller") {
+                        this.context = this.$.canvascontroller.getContext("2d");
+                    } else if (role === "viewer") {
+                        this.context = this.$.canvas.getContext("2d");
+                    }
+                    console.log(event);
+                }.bind(this));
+            }
+
+        });
+    });
+
+</script>
+
+<my-app></my-app>
+
+
+</body>
+</html>
