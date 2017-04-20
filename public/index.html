@@ -17,7 +17,7 @@
     <link rel="import" href="bower_components/iron-selector/iron-selector.html">
 
     <link rel="import" href="bower_components/xdmvcclient/layouts/controller-layout.html">
-    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title></title>
 </head>
@@ -27,18 +27,23 @@
         font-family: 'RobotoDraft', sans-serif;
         padding: 0;
         margin: 0;
-        overflow: hidden;
+    /*    overflow: hidden;
+    *
+     */
     }
 
 </style>
 
 <dom-module id="my-app">
     <template>
-        <xdmvc-connection ></xdmvc-connection>
+        <xdmvc-connection persist-ids ></xdmvc-connection>
 
         <xdmvc-synchronised id="sync"
                             objects='{{synced}}'
                             other-devices="{{others}}">
+        </xdmvc-synchronised>
+        <xdmvc-synchronised id="sync"
+                            objects='{{canvas}}'>
         </xdmvc-synchronised>
         <controller-layout>
             <div class="controller">
@@ -83,9 +88,10 @@
                 }
             }
 
-            canvas {
+            #canvas {
                 height: 100vh;
                 width: 100vw;
+                border: 1px solid red;
             }
         </style>
 
@@ -103,9 +109,15 @@
                 synced: {
                     type: Object,
                     value: function(){ return { position: { coordinates: {prevX: -1, prevY: -1, x: -1, y: -1 }},
-                      drawing : { active: false},
-                      style: {color: "black", stroke: 2}
+                        drawing : { active: false},
+                        style: {color: "black", stroke: 2}
                     } } ,
+                    notify: true
+                },
+                canvas: {
+                    type: Object,
+                    value: function(){ return { dimension: { values : {height: 0, width: 0}}
+                    } },
                     notify: true
                 },
                 context: Object,
@@ -114,7 +126,16 @@
                 prevY: Number
 
             },
-            observers: ["othersChanged(others.*)"],
+            observers: ["othersChanged(others.*)", "canvasChanged(canvas.dimension.*)"],
+
+            canvasChanged: function(){
+                console.log(this.canvas.dimension.values);
+                this.$.canvascontroller.width  = this.canvas.dimension.values.width;
+                this.$.canvascontroller.height = this.canvas.dimension.values.height;
+                console.log(this.$.canvascontroller);
+                console.log(this.$.canvascontroller.height);
+            },
+
 
             draw: function(event) {
                 let x = 0;
@@ -122,9 +143,7 @@
                 if (event.detail.state === "end") {
                     this.prevX = 0;
                     this.prevY = 0;
-                    console.log("end");
                 } else if (event.detail.state === "start") {
-                    console.log("start");
                     this.prevX = event.detail.x;
                     this.prevY = event.detail.y;
                 }else  {
@@ -159,7 +178,6 @@
                         this.context.stroke();
                         this.context.closePath();
                     }
-
                 }
             },
 
@@ -167,20 +185,17 @@
 
             attached: function () {
                 // for some reason, the canvas has no width initially.
-                this.async( function() {
-                    this.$.canvascontroller.width  = this.$.canvascontroller.clientWidth;
-                    this.$.canvascontroller.height = this.$.canvascontroller.clientHeight;
-                    this.$.canvas.width  = this.$.canvas.clientWidth;
-                    this.$.canvas.height = this.$.canvas.clientHeight;
-                }, 100);
-                console.log(this.context);
+                this.$.canvas.width  = window.innerWidth;
+                this.$.canvas.height = window.innerHeight;
+                console.log(XDmvc.roles);
                 XDmvc.on("XDroleAdded", function(role) {
+                    console.log(role);
                     if (role === "controller") {
                         this.context = this.$.canvascontroller.getContext("2d");
                     } else if (role === "viewer") {
                         this.context = this.$.canvas.getContext("2d");
+                        this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} )
                     }
-                    console.log(event);
                 }.bind(this));
             }
 
