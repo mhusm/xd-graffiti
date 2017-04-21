@@ -14,10 +14,11 @@
     <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-connection.html">
     <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-url-pairing.html">
     <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-qr.html">
+    <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-role.html">
     <link rel="import" href="bower_components/iron-selector/iron-selector.html">
 
     <link rel="import" href="bower_components/xdmvcclient/layouts/controller-layout.html">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
 
     <title></title>
 </head>
@@ -27,9 +28,11 @@
         font-family: 'RobotoDraft', sans-serif;
         padding: 0;
         margin: 0;
-    /*    overflow: hidden;
-    *
-     */
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+
+
     }
 
 </style>
@@ -43,13 +46,23 @@
                             other-devices="{{others}}">
         </xdmvc-synchronised>
         <xdmvc-synchronised id="sync"
-                            objects='{{canvas}}'>
+                            objects='{{canvas}}' other-devices="{{canvasOthers}}">
         </xdmvc-synchronised>
+
+        <xdmvc-roles id="roles" roles="{{roles}}" available='["controller", "viewer"]'
+                     no-default></xdmvc-roles>
+        <xdmvc-role name="viewer" config='[ {"dimension": "dimensionChangedViewer"}, { "position": "remoteDraw" },  { "location": "locationChanged" }]' no-merge> </xdmvc-role>
+        <xdmvc-role name="controller" config='[ { "position": "remoteDraw" }, {"dimension": "dimensionChanged"}]' no-merge>  </xdmvc-role>
+
         <controller-layout>
             <div class="controller">
                 <xdmvc-url-pairing connector="controller" connectee="viewer" ></xdmvc-url-pairing>
                 <div id="landscape">
-                    <canvas id="canvascontroller" on-track="draw"/>
+                    <button id="left" on-tap="left">left</button>
+                    <button id="right" on-tap="right">right</button>
+                    <button id="up" on-tap="up">up</button>
+                    <button id="down" on-tap="down">down</button>
+                    <canvas id="canvascontroller" on-track="draw"></canvas>
                 </div>
                 <div id="portrait">
 
@@ -63,6 +76,10 @@
                     <xdmvc-qr url="[[url]]" message="Scan the QR code to pair to this screen."></xdmvc-qr>
                 </div>
                 <canvas id="canvas"></canvas>
+                <template is="dom-repeat" items="{{others}}" >
+                    <div class="device" style$="[[getStyle(item.*)]]">device</div>
+                </template>
+
             </div>
         </controller-layout>
         <style>
@@ -93,6 +110,42 @@
                 width: 100vw;
                 border: 1px solid red;
             }
+
+            #canvascontroller {
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+
+            button {
+                position: fixed;
+                z-index: 100;
+            }
+            #left {
+                bottom: 0;
+                left: 0;
+            }
+            #up {
+                top: 0;
+                left: 0;
+            }
+            #right {
+                top: 0;
+                right: 0;
+            }
+            #down {
+                bottom: 0;
+                right: 0;
+            }
+
+            .device{
+                position: absolute;
+                border: 2px solid red;
+                left: 300px;
+                top: 0;
+            }
+
+
         </style>
 
    </template>
@@ -116,17 +169,41 @@
                 },
                 canvas: {
                     type: Object,
-                    value: function(){ return { dimension: { values : {height: 0, width: 0}}
+                    value: function(){ return { dimension: { values : {height: 0, width: 0}}, location: {values: {top:0, left:0}}
                     } },
                     notify: true
                 },
                 context: Object,
                 others: Array,
                 prevX: Number,
-                prevY: Number
+                prevY: Number,
+                scroll: {
+                    type: Boolean,
+                    value: true
+                }
 
             },
-            observers: ["othersChanged(others.*)", "canvasChanged(canvas.dimension.*)"],
+            observers: ["canvasChanged(canvas.dimension.*)"],
+
+            dimensionChanged: function(label, data, sender) {
+                console.log("dimension changed controller");
+                console.log(arguments);
+                if (XDmvc.getConnectedDevice(sender).hasRole("viewer")) {
+                    this.$.canvascontroller.width  = data.values.width;
+                    this.$.canvascontroller.height = data.values.height;
+                    // we are setting this later, because the first synchronisation data is discarded (from controllers), not ideal behaviour, may need changing
+                    this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} );
+                    this.set("canvas.location.values", {top: 30, left: 50} );
+                }
+            },
+            dimensionChangedViewer: function(label, data, sender) {
+                console.log("dimension changed viewer");
+                console.log(arguments);
+            },
+
+            locationChanged: function(label, data, sender) {
+                console.log("location changed viewer");
+            },
 
             canvasChanged: function(){
                 console.log(this.canvas.dimension.values);
@@ -134,6 +211,28 @@
                 this.$.canvascontroller.height = this.canvas.dimension.values.height;
                 console.log(this.$.canvascontroller);
                 console.log(this.$.canvascontroller.height);
+            },
+/*
+            toggleScroll: function() {
+                this.scroll = !this.scroll;
+                if (this.scroll) {
+                    document.querySelector("body").style["overflow"] = "auto";
+                    this.$.canvascontroller.style["top"] = 0;
+                    this.$.canvascontroller.style["left"] = 0;
+                    this.unlisten(this.$.canvascontroller, 'track', 'draw');
+                } else {
+                    this.$.canvascontroller.style["top"] = document.querySelector("body").scrollTop +"px";
+                    this.$.canvascontroller.style["left"] = document.querySelector("body").scrollLeft +"px";
+                    this.listen(this.$.canvascontroller, 'track', 'draw');
+
+                    document.querySelector("body").style["overflow"] = "hidden";
+                }
+            },
+*/
+            down: function () {
+                console.log(this.$.canvascontroller.offsetTop);
+                this.$.canvascontroller.style["top"] = this.$.canvascontroller.offsetTop +5 +"px";
+
             },
 
 
@@ -144,11 +243,12 @@
                     this.prevX = 0;
                     this.prevY = 0;
                 } else if (event.detail.state === "start") {
-                    this.prevX = event.detail.x;
-                    this.prevY = event.detail.y;
+                    this.prevX = event.detail.x  + document.querySelector("body").scrollLeft;
+                    this.prevY = event.detail.y + document.querySelector("body").scrollTop;
                 }else  {
-                    x = event.detail.x;
-                    y = event.detail.y;
+                    x = event.detail.x  + document.querySelector("body").scrollLeft;
+                    y = event.detail.y + document.querySelector("body").scrollTop;
+                    console.log(x);
                     this.context.beginPath();
                     this.context.moveTo(this.prevX, this.prevY);
                     this.context.lineTo(x, y);
@@ -162,25 +262,23 @@
                 }
             },
 
-            othersChanged: function(cr){
-                let positionSubpath = cr.path.indexOf('.data.position.coordinates');
-                if (positionSubpath > -1) {
-                    let itempath = cr.path.substring(0, positionSubpath);
-                    let item = this.get(itempath);
-                    let index = cr.base.indexOf(item);
-                    let position = item.data.position.coordinates;
-                    if (position.x > -1 && position.y > -1 && position.prevX >-1 && position.prevY > -1) {
-                        this.context.beginPath();
-                        this.context.moveTo(position.prevX, position.prevY);
-                        this.context.lineTo(position.x, position.y);
-                        this.context.strokeStyle = "black";
-                        this.context.lineWidth = "2";
-                        this.context.stroke();
-                        this.context.closePath();
-                    }
+            remoteDraw: function(label, data, sender){
+                let position = data.coordinates;
+                if (position.x > -1 && position.y > -1 && position.prevX >-1 && position.prevY > -1) {
+                    this.context.beginPath();
+                    this.context.moveTo(position.prevX, position.prevY);
+                    this.context.lineTo(position.x, position.y);
+                    this.context.strokeStyle = "black";
+                    this.context.lineWidth = "2";
+                    this.context.stroke();
+                    this.context.closePath();
                 }
             },
 
+            getStyle: function(device){
+                console.log(device);
+                return "width: 250px"
+            },
 
 
             attached: function () {
@@ -188,16 +286,19 @@
                 this.$.canvas.width  = window.innerWidth;
                 this.$.canvas.height = window.innerHeight;
                 console.log(XDmvc.roles);
+
                 XDmvc.on("XDroleAdded", function(role) {
                     console.log(role);
                     if (role === "controller") {
                         this.context = this.$.canvascontroller.getContext("2d");
                     } else if (role === "viewer") {
                         this.context = this.$.canvas.getContext("2d");
-                        this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} )
+                        this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} );
                     }
                 }.bind(this));
+
             }
+
 
         });
     });
