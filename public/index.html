@@ -76,8 +76,8 @@
                     <xdmvc-qr url="[[url]]" message="Scan the QR code to pair to this screen."></xdmvc-qr>
                 </div>
                 <canvas id="canvas"></canvas>
-                <template is="dom-repeat" items="{{others}}" >
-                    <div class="device" style$="[[getStyle(item.*)]]">device</div>
+                <template is="dom-repeat" items="{{canvasOthers}}" >
+                    <div class="device" style$="[[getStyle(item.data.location.*, item.data.dimension.*, item)]]"></div>
                 </template>
 
             </div>
@@ -193,7 +193,7 @@
                     this.$.canvascontroller.height = data.values.height;
                     // we are setting this later, because the first synchronisation data is discarded (from controllers), not ideal behaviour, may need changing
                     this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} );
-                    this.set("canvas.location.values", {top: 30, left: 50} );
+                    this.set("canvas.location.values", {top: 300, left: 500} );
                 }
             },
             dimensionChangedViewer: function(label, data, sender) {
@@ -231,6 +231,7 @@
 */
             down: function () {
                 console.log(this.$.canvascontroller.offsetTop);
+//                this.set("canvas.location.values", {});
                 this.$.canvascontroller.style["top"] = this.$.canvascontroller.offsetTop +5 +"px";
 
             },
@@ -275,9 +276,15 @@
                 }
             },
 
-            getStyle: function(device){
-                console.log(device);
-                return "width: 250px"
+            getStyle: function(crl,crd, item){
+                console.log(crl);
+                console.log(item);
+                let location = item.data.location.values;
+                let dimension= item.data.dimension.values;
+                console.log(location);
+                console.log(dimension);
+                return "top: "+location.top +"px; left:" +location.left +"px; width: "
+                    +dimension.width +"px; height: " +dimension.height +"px;";
             },
 
 
