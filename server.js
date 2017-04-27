@@ -29,6 +29,8 @@ var app = connect().use(serveStatic(path.join(__dirname, 'public')));
 var server = http.createServer(app);
 
 xdmvc.start();
-server.listen(80);
+var port = 80;
+server.listen(port);
+console.log("server started on port " +port);
 
 
