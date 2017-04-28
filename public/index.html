@@ -108,7 +108,6 @@
             #canvas {
                 height: 100vh;
                 width: 100vw;
-                border: 1px solid red;
             }
 
             canvas {
@@ -119,12 +118,14 @@
                 position: absolute;
                 top: 0;
                 left: 0;
-                background: blue;
-            }
+             }
 
             button {
                 position: fixed;
                 z-index: 100;
+                font-size: 3em;
+                user-select: none;
+                width:  4em;
             }
             #left {
                 bottom: 0;
@@ -213,32 +214,6 @@
             locationChanged: function(label, data, sender) {
                 console.log("location changed viewer");
             },
-/*
-            canvasChanged: function(){
-                console.log(this.canvas.dimension.values);
-  //              this.$.canvascontroller.width  = this.canvas.dimension.values.width;
- //               this.$.canvascontroller.height = this.canvas.dimension.values.height;
-                console.log(this.$.canvascontroller);
-                console.log(this.$.canvascontroller.height);
-            },
-*/
-/*
-            toggleScroll: function() {
-                this.scroll = !this.scroll;
-                if (this.scroll) {
-                    document.querySelector("body").style["overflow"] = "auto";
-                    this.$.canvascontroller.style["top"] = 0;
-                    this.$.canvascontroller.style["left"] = 0;
-                    this.unlisten(this.$.canvascontroller, 'track', 'draw');
-                } else {
-                    this.$.canvascontroller.style["top"] = document.querySelector("body").scrollTop +"px";
-                    this.$.canvascontroller.style["left"] = document.querySelector("body").scrollLeft +"px";
-                    this.listen(this.$.canvascontroller, 'track', 'draw');
-
-                    document.querySelector("body").style["overflow"] = "hidden";
-                }
-            },
-*/
 
             up: function () {
                 console.log(this.$.canvascontroller.offsetTop);
