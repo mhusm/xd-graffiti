@@ -58,10 +58,10 @@
             <div class="controller">
                 <xdmvc-url-pairing connector="controller" connectee="viewer" ></xdmvc-url-pairing>
                 <div id="landscape">
-                    <button id="left" on-tap="left">left</button>
-                    <button id="right" on-tap="right">right</button>
-                    <button id="up" on-tap="up">up</button>
-                    <button id="down" on-tap="down">down</button>
+                    <button id="left" on-down="leftdown" on-up="uphandler">left</button>
+                    <button id="right" on-down="rightdown" on-up="uphandler">right</button>
+                    <button id="up" on-down="updown" on-up="uphandler">up</button>
+                    <button id="down" on-down="downdown" on-up="uphandler" >down</button>
                     <canvas id="canvascontroller" on-track="draw"></canvas>
                 </div>
                 <div id="portrait">
@@ -109,6 +109,10 @@
                 height: 100vh;
                 width: 100vw;
                 border: 1px solid red;
+            }
+
+            canvas {
+                cursor: default;
             }
 
             #canvascontroller {
@@ -181,15 +185,17 @@
                 scroll: {
                     type: Boolean,
                     value: true
-                }
+                },
+                interval: Object
 
             },
-            observers: ["canvasChanged(canvas.dimension.*)"],
+//            observers: ["canvasChanged(canvas.dimension.*)"],
 
             dimensionChanged: function(label, data, sender) {
                 console.log("dimension changed controller");
                 console.log(arguments);
                 if (XDmvc.getConnectedDevice(sender).hasRole("viewer")) {
+                    console.log(data.values);
                     this.$.canvascontroller.width  = data.values.width;
                     this.$.canvascontroller.height = data.values.height;
                     this.$.canvascontroller.style["width"] = data.values.width +"px";
@@ -207,14 +213,15 @@
             locationChanged: function(label, data, sender) {
                 console.log("location changed viewer");
             },
-
+/*
             canvasChanged: function(){
                 console.log(this.canvas.dimension.values);
-                this.$.canvascontroller.width  = this.canvas.dimension.values.width;
-                this.$.canvascontroller.height = this.canvas.dimension.values.height;
+  //              this.$.canvascontroller.width  = this.canvas.dimension.values.width;
+ //               this.$.canvascontroller.height = this.canvas.dimension.values.height;
                 console.log(this.$.canvascontroller);
                 console.log(this.$.canvascontroller.height);
             },
+*/
 /*
             toggleScroll: function() {
                 this.scroll = !this.scroll;
@@ -245,6 +252,34 @@
                 this.$.canvascontroller.style["top"] = this.$.canvascontroller.offsetTop -5 +"px";
             },
 
+            updown: function(){
+                this.interval = setInterval(this.up.bind(this), 20);
+            },
+            leftdown: function(){
+                this.interval = setInterval(this.left.bind(this), 20);
+            },
+            downdown: function(){
+                this.interval = setInterval(this.down.bind(this), 20);
+            },
+            rightdown: function(){
+                this.interval = setInterval(this.right.bind(this), 20);
+            },
+            uphandler: function(){
+                clearInterval(this.interval);
+            },
+
+            right: function () {
+                console.log(this.$.canvascontroller.offsetTop);
+                this.set("canvas.location.values", {top: this.canvas.location.values.top, left:   this.canvas.location.values.left +5 });
+                this.$.canvascontroller.style["left"] = this.$.canvascontroller.offsetLeft -5 +"px";
+            },
+
+            left: function () {
+                console.log(this.$.canvascontroller.offsetTop);
+                this.set("canvas.location.values", {top: this.canvas.location.values.top, left:   this.canvas.location.values.left -5});
+                this.$.canvascontroller.style["left"] = this.$.canvascontroller.offsetLeft +5 +"px";
+            },
+
 
             draw: function(event) {
                 let x = 0;
@@ -253,12 +288,11 @@
                     this.prevX = 0;
                     this.prevY = 0;
                 } else if (event.detail.state === "start") {
-                    this.prevX = event.detail.x  + document.querySelector("body").scrollLeft;
-                    this.prevY = event.detail.y + document.querySelector("body").scrollTop;
+                    this.prevX = event.detail.x  +this.canvas.location.values.left;
+                    this.prevY = event.detail.y +this.canvas.location.values.top;
                 }else  {
-                    x = event.detail.x  + document.querySelector("body").scrollLeft;
-                    y = event.detail.y + document.querySelector("body").scrollTop;
-                    console.log(x);
+                    x = event.detail.x +this.canvas.location.values.left;
+                    y = event.detail.y +this.canvas.location.values.top;
                     this.context.beginPath();
                     this.context.moveTo(this.prevX, this.prevY);
                     this.context.lineTo(x, y);
