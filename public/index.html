@@ -51,23 +51,18 @@
 
         <xdmvc-roles id="roles" roles="{{roles}}" available='["controller", "viewer"]'
                      no-default></xdmvc-roles>
-        <xdmvc-role name="viewer" config='[ {"dimension": "dimensionChangedViewer"}, { "position": "remoteDraw" },  { "location": "locationChanged" }]' no-merge> </xdmvc-role>
+        <xdmvc-role name="viewer" config='[ {"dimension": "dimensionChangedViewer"}, { "position": "remoteDraw" },  { "location": "locationChanged" }, "style"]' no-merge> </xdmvc-role>
         <xdmvc-role name="controller" config='[ { "position": "remoteDraw" }, {"dimension": "dimensionChanged"}]' no-merge>  </xdmvc-role>
 
         <controller-layout>
             <div class="controller">
                 <xdmvc-url-pairing connector="controller" connectee="viewer" ></xdmvc-url-pairing>
-                <div id="landscape">
-                    <button id="left" on-down="leftdown" on-up="uphandler">left</button>
-                    <button id="right" on-down="rightdown" on-up="uphandler">right</button>
-                    <button id="up" on-down="updown" on-up="uphandler">up</button>
-                    <button id="down" on-down="downdown" on-up="uphandler" >down</button>
-                    <canvas id="canvascontroller" on-track="draw"></canvas>
-                </div>
-                <div id="portrait">
-
-
-                </div>
+                <input on-change="colourChanged" type="color" id="colorinput"/>
+                <button id="left" on-down="leftdown" on-up="uphandler">left</button>
+                <button id="right" on-down="rightdown" on-up="uphandler">right</button>
+                <button id="up" on-down="updown" on-up="uphandler">up</button>
+                <button id="down" on-down="downdown" on-up="uphandler" >down</button>
+                <canvas id="canvascontroller" on-track="draw"></canvas>
 
             </div>
             <div class="viewer">
@@ -94,16 +89,6 @@
                 overflow: auto;
             }
 
-            @media (orientation: landscape) {
-                #portrait {
-                    display: none;
-                }
-            }
-            @media (orientation: portrait) {
-                #landscape {
-                    display: none;
-                }
-            }
 
             #canvas {
                 height: 100vh;
@@ -151,6 +136,13 @@
                 top: 0;
             }
 
+            #colorinput {
+                position: fixed;
+                left: 40%;
+                top: 0;
+                z-index: 100;
+            }
+
 
         </style>
 
@@ -193,8 +185,6 @@
 //            observers: ["canvasChanged(canvas.dimension.*)"],
 
             dimensionChanged: function(label, data, sender) {
-                console.log("dimension changed controller");
-                console.log(arguments);
                 if (XDmvc.getConnectedDevice(sender).hasRole("viewer")) {
                     console.log(data.values);
                     this.$.canvascontroller.width  = data.values.width;
@@ -216,15 +206,23 @@
             },
 
             up: function () {
-                console.log(this.$.canvascontroller.offsetTop);
                 this.set("canvas.location.values", {top: this.canvas.location.values.top -5, left:   this.canvas.location.values.left });
                 this.$.canvascontroller.style["top"] = this.$.canvascontroller.offsetTop +5 +"px";
             },
 
             down: function () {
-                console.log(this.$.canvascontroller.offsetTop);
                 this.set("canvas.location.values", {top: this.canvas.location.values.top +5, left:   this.canvas.location.values.left });
                 this.$.canvascontroller.style["top"] = this.$.canvascontroller.offsetTop -5 +"px";
+            },
+
+            right: function () {
+                this.set("canvas.location.values", {top: this.canvas.location.values.top, left:   this.canvas.location.values.left +5 });
+                this.$.canvascontroller.style["left"] = this.$.canvascontroller.offsetLeft -5 +"px";
+            },
+
+            left: function () {
+                this.set("canvas.location.values", {top: this.canvas.location.values.top, left:   this.canvas.location.values.left -5});
+                this.$.canvascontroller.style["left"] = this.$.canvascontroller.offsetLeft +5 +"px";
             },
 
             updown: function(){
@@ -243,16 +241,9 @@
                 clearInterval(this.interval);
             },
 
-            right: function () {
-                console.log(this.$.canvascontroller.offsetTop);
-                this.set("canvas.location.values", {top: this.canvas.location.values.top, left:   this.canvas.location.values.left +5 });
-                this.$.canvascontroller.style["left"] = this.$.canvascontroller.offsetLeft -5 +"px";
-            },
-
-            left: function () {
-                console.log(this.$.canvascontroller.offsetTop);
-                this.set("canvas.location.values", {top: this.canvas.location.values.top, left:   this.canvas.location.values.left -5});
-                this.$.canvascontroller.style["left"] = this.$.canvascontroller.offsetLeft +5 +"px";
+            colourChanged: function(event) {
+                console.log(this.$.colorinput.value);
+                this.set("synced.style.color", this.$.colorinput.value);
             },
 
 
@@ -271,7 +262,7 @@
                     this.context.beginPath();
                     this.context.moveTo(this.prevX, this.prevY);
                     this.context.lineTo(x, y);
-                    this.context.strokeStyle = "black";
+                    this.context.strokeStyle = this.synced.style.color;
                     this.context.lineWidth = "2";
                     this.context.stroke();
                     this.context.closePath();
@@ -282,12 +273,14 @@
             },
 
             remoteDraw: function(label, data, sender){
+                console.log(data);
+                console.log(sender);
                 let position = data.coordinates;
                 if (position.x > -1 && position.y > -1 && position.prevX >-1 && position.prevY > -1) {
                     this.context.beginPath();
                     this.context.moveTo(position.prevX, position.prevY);
                     this.context.lineTo(position.x, position.y);
-                    this.context.strokeStyle = "black";
+                    this.context.strokeStyle = XDmvc.getConnectedDevice(sender).latestData.style.color;
                     this.context.lineWidth = "2";
                     this.context.stroke();
                     this.context.closePath();
