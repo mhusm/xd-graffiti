@@ -52,7 +52,7 @@
         <xdmvc-roles id="roles" roles="{{roles}}" available='["controller", "viewer"]'
                      no-default></xdmvc-roles>
         <xdmvc-role name="viewer" config='[ {"dimension": "dimensionChangedViewer"}, { "position": "remoteDraw" },  { "location": "locationChanged" }, "style"]' no-merge> </xdmvc-role>
-        <xdmvc-role name="controller" config='[ { "position": "remoteDraw" }, {"dimension": "dimensionChanged"}]' no-merge>  </xdmvc-role>
+        <xdmvc-role name="controller" config='[ { "position": "remoteDraw" }, {"dimension": "dimensionChanged"}, {"background": "backgroundChanged"}]' no-merge>  </xdmvc-role>
 
         <controller-layout>
             <div class="controller">
@@ -160,8 +160,8 @@
                 synced: {
                     type: Object,
                     value: function(){ return { position: { coordinates: {prevX: -1, prevY: -1, x: -1, y: -1 }},
-                        drawing : { active: false},
-                        style: {color: "black", stroke: 2}
+                        style: {color: "black"},
+                        background: {image: ""}
                     } } ,
                     notify: true
                 },
@@ -186,7 +186,6 @@
 
             dimensionChanged: function(label, data, sender) {
                 if (XDmvc.getConnectedDevice(sender).hasRole("viewer")) {
-                    console.log(data.values);
                     this.$.canvascontroller.width  = data.values.width;
                     this.$.canvascontroller.height = data.values.height;
                     this.$.canvascontroller.style["width"] = data.values.width +"px";
@@ -196,6 +195,7 @@
                     this.set("canvas.location.values", {top: 0, left: 0} );
                 }
             },
+            /*
             dimensionChangedViewer: function(label, data, sender) {
                 console.log("dimension changed viewer");
                 console.log(arguments);
@@ -204,7 +204,7 @@
             locationChanged: function(label, data, sender) {
                 console.log("location changed viewer");
             },
-
+*/
             up: function () {
                 this.set("canvas.location.values", {top: this.canvas.location.values.top -5, left:   this.canvas.location.values.left });
                 this.$.canvascontroller.style["top"] = this.$.canvascontroller.offsetTop +5 +"px";
@@ -242,10 +242,19 @@
             },
 
             colourChanged: function(event) {
-                console.log(this.$.colorinput.value);
                 this.set("synced.style.color", this.$.colorinput.value);
             },
 
+            backgroundChanged: function(label, data, sender) {
+                console.log(label);
+                console.log(data);
+                console.log(sender);
+                var image = new Image();
+                image.src = data.image;
+                image.onload = function() {
+                    this.context.drawImage(image, 0, 0);
+                }.bind(this);
+            },
 
             draw: function(event) {
                 let x = 0;
@@ -273,8 +282,6 @@
             },
 
             remoteDraw: function(label, data, sender){
-                console.log(data);
-                console.log(sender);
                 let position = data.coordinates;
                 if (position.x > -1 && position.y > -1 && position.prevX >-1 && position.prevY > -1) {
                     this.context.beginPath();
@@ -288,12 +295,8 @@
             },
 
             getStyle: function(crl,crd, item){
-                console.log(crl);
-                console.log(item);
                 let location = item.data.location.values;
                 let dimension= item.data.dimension.values;
-                console.log(location);
-                console.log(dimension);
                 return "top: "+location.top +"px; left:" +location.left +"px; width: "
                     +dimension.width +"px; height: " +dimension.height +"px;";
             },
@@ -306,12 +309,19 @@
                 console.log(XDmvc.roles);
 
                 XDmvc.on("XDroleAdded", function(role) {
-                    console.log(role);
                     if (role === "controller") {
                         this.context = this.$.canvascontroller.getContext("2d");
                     } else if (role === "viewer") {
                         this.context = this.$.canvas.getContext("2d");
                         this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} );
+                    }
+                }.bind(this));
+
+                XDmvc.on("XDconnection", function(device) {
+                    console.log(device);
+                    if (XDmvc.hasRole("viewer")) {
+                        console.log("this is the viewer");
+                        this.set("synced.background.image", this.$.canvas.toDataURL());
                     }
                 }.bind(this));
 
