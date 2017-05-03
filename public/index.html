@@ -372,6 +372,13 @@
                 this.$.canvas.height = window.innerHeight;
                 console.log(XDmvc.roles);
 
+
+                window.addEventListener("resize", function() {
+                    // Get screen size (inner/outerWidth, inner/outerHeight)
+                    this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} );
+
+                }.bind(this), false);
+
                 XDmvc.on("XDroleAdded", function(role) {
                     if (role === "controller") {
                         this.context = this.$.canvascontroller.getContext("2d");
