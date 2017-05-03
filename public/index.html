@@ -15,7 +15,9 @@
     <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-url-pairing.html">
     <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-qr.html">
     <link rel="import" href="bower_components/xdmvcclient/polymer/xdmvc-role.html">
-    <link rel="import" href="bower_components/iron-selector/iron-selector.html">
+    <link rel="import" href="bower_components/iron-icons/image-icons.html">
+    <link rel="import" href="bower_components/paper-icon-button/paper-icon-button.html">
+    <link rel="import" href="bower_components/paper-slider/paper-slider.html">
 
     <link rel="import" href="bower_components/xdmvcclient/layouts/controller-layout.html">
     <meta name="viewport" content="width=device-width, user-scalable=no">
@@ -52,12 +54,17 @@
         <xdmvc-roles id="roles" roles="{{roles}}" available='["controller", "viewer"]'
                      no-default></xdmvc-roles>
         <xdmvc-role name="viewer" config='[ {"dimension": "dimensionChangedViewer"}, { "position": "remoteDraw" },  { "location": "locationChanged" }, "style"]' no-merge> </xdmvc-role>
-        <xdmvc-role name="controller" config='[ { "position": "remoteDraw" }, {"dimension": "dimensionChanged"}, {"background": "backgroundChanged"}]' no-merge>  </xdmvc-role>
+        <xdmvc-role name="controller" config='[ { "position": "remoteDraw" }, {"dimension": "dimensionChanged"}, {"background": "backgroundChanged"}, "style"]' no-merge>  </xdmvc-role>
 
         <controller-layout>
             <div class="controller">
                 <xdmvc-url-pairing connector="controller" connectee="viewer" ></xdmvc-url-pairing>
                 <input on-change="colourChanged" type="color" id="colorinput"/>
+                <div id="strokecontroller">
+                    <div id="stroke" style$="[[getStrokeStyle(synced.style.color, synced.style.stroke)]]"></div>
+                    <paper-icon-button id="slider" on-tap="toggleSlider" icon="image:brush"></paper-icon-button>
+                </div>
+                <paper-slider hidden$="[[sliderHidden]]" min="1" max="20"  value=[[synced.style.stroke]] immediate-value="{{synced.style.stroke}}" ></paper-slider>
                 <button id="left" on-down="leftdown" on-up="uphandler">left</button>
                 <button id="right" on-down="rightdown" on-up="uphandler">right</button>
                 <button id="up" on-down="updown" on-up="uphandler">up</button>
@@ -138,9 +145,64 @@
 
             #colorinput {
                 position: fixed;
-                left: 40%;
-                top: 0;
+                width: 4em;
                 z-index: 100;
+            }
+
+            #strokecontroller {
+                position: fixed;
+                width: 70px;
+                z-index: 100;
+            }
+
+            paper-slider {
+                position: fixed;
+                width: 400px;
+                max-width: 80%;
+                z-index: 100;
+                --paper-slider-active-color : black;
+                --paper-slider-knob-color: black;
+                background-color: white;
+            }
+            #stroke {
+                display: inline-block;
+                width: 20px;
+            }
+
+            @media (orientation: landscape) {
+                #colorinput {
+                    left: calc(40% - 2em);
+                    bottom: 0;
+                }
+
+                #strokecontroller {
+                    right: calc(40% - 2em);
+                    bottom: 0;
+                }
+
+                paper-slider {
+                    bottom: 20%;
+                    right: calc(40% - 2em);
+                }
+
+            }
+
+            @media (orientation: portrait) {
+                #colorinput {
+                    left: 5%;
+                    top: calc(40% - 2em);
+                }
+
+                #strokecontroller {
+                    left: 5%;
+                    bottom: calc(40% - 2em);
+                }
+
+                paper-slider {
+                    bottom: calc(40% - 2em);
+                    left: 20%;
+                }
+
             }
 
 
@@ -160,7 +222,7 @@
                 synced: {
                     type: Object,
                     value: function(){ return { position: { coordinates: {prevX: -1, prevY: -1, x: -1, y: -1 }},
-                        style: {color: "black"},
+                        style: {color: "black", stroke: 2},
                         background: {image: ""}
                     } } ,
                     notify: true
@@ -179,7 +241,11 @@
                     type: Boolean,
                     value: true
                 },
-                interval: Object
+                interval: Object,
+                sliderHidden: {
+                    type: Boolean,
+                    value: true
+                }
 
             },
 //            observers: ["canvasChanged(canvas.dimension.*)"],
@@ -195,16 +261,6 @@
                     this.set("canvas.location.values", {top: 0, left: 0} );
                 }
             },
-            /*
-            dimensionChangedViewer: function(label, data, sender) {
-                console.log("dimension changed viewer");
-                console.log(arguments);
-            },
-
-            locationChanged: function(label, data, sender) {
-                console.log("location changed viewer");
-            },
-*/
             up: function () {
                 this.set("canvas.location.values", {top: this.canvas.location.values.top -5, left:   this.canvas.location.values.left });
                 this.$.canvascontroller.style["top"] = this.$.canvascontroller.offsetTop +5 +"px";
@@ -245,6 +301,10 @@
                 this.set("synced.style.color", this.$.colorinput.value);
             },
 
+            toggleSlider: function(){
+                this.sliderHidden = !this.sliderHidden;
+            },
+
             backgroundChanged: function(label, data, sender) {
                 console.log(label);
                 console.log(data);
@@ -272,7 +332,7 @@
                     this.context.moveTo(this.prevX, this.prevY);
                     this.context.lineTo(x, y);
                     this.context.strokeStyle = this.synced.style.color;
-                    this.context.lineWidth = "2";
+                    this.context.lineWidth = this.synced.style.stroke;
                     this.context.stroke();
                     this.context.closePath();
                     this.set("synced.position.coordinates", {prevX: this.prevX, prevY: this.prevY, x: x, y:y});
@@ -288,7 +348,7 @@
                     this.context.moveTo(position.prevX, position.prevY);
                     this.context.lineTo(position.x, position.y);
                     this.context.strokeStyle = XDmvc.getConnectedDevice(sender).latestData.style.color;
-                    this.context.lineWidth = "2";
+                    this.context.lineWidth = XDmvc.getConnectedDevice(sender).latestData.style.stroke;
                     this.context.stroke();
                     this.context.closePath();
                 }
@@ -301,6 +361,10 @@
                     +dimension.width +"px; height: " +dimension.height +"px;";
             },
 
+            getStrokeStyle: function(color, stroke){
+                 return "height:" +stroke +"px; background-color: "
+                    +color;
+            },
 
             attached: function () {
                 // for some reason, the canvas has no width initially.
