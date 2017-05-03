@@ -53,7 +53,7 @@
 
         <xdmvc-roles id="roles" roles="{{roles}}" available='["controller", "viewer"]'
                      no-default></xdmvc-roles>
-        <xdmvc-role name="viewer" config='[ {"dimension": "dimensionChangedViewer"}, { "position": "remoteDraw" },  { "location": "locationChanged" }, "style"]' no-merge> </xdmvc-role>
+        <xdmvc-role name="viewer" config='[ {"dimension": "dimensionChangedViewer"}, { "position": "remoteDraw" },  { "location": "locationChanged" }, "style", "color"]' no-merge> </xdmvc-role>
         <xdmvc-role name="controller" config='[ { "position": "remoteDraw" }, {"dimension": "dimensionChanged"}, {"background": "backgroundChanged"}, "style"]' no-merge>  </xdmvc-role>
 
         <controller-layout>
@@ -64,11 +64,11 @@
                     <div id="stroke" style$="[[getStrokeStyle(synced.style.color, synced.style.stroke)]]"></div>
                     <paper-icon-button id="slider" on-tap="toggleSlider" icon="image:brush"></paper-icon-button>
                 </div>
-                <paper-slider hidden$="[[sliderHidden]]" min="1" max="20"  value=[[synced.style.stroke]] immediate-value="{{synced.style.stroke}}" ></paper-slider>
-                <button id="left" on-down="leftdown" on-up="uphandler">left</button>
-                <button id="right" on-down="rightdown" on-up="uphandler">right</button>
-                <button id="up" on-down="updown" on-up="uphandler">up</button>
-                <button id="down" on-down="downdown" on-up="uphandler" >down</button>
+                <paper-slider hidden$="[[sliderHidden]]" min="1" max="20"  value="[[synced.style.stroke]]" immediate-value="{{synced.style.stroke}}" ></paper-slider>
+                <button id="left" on-down="leftdown" on-up="uphandler" style$="[[getButtonStyle(canvas.color.value)]]">left</button>
+                <button id="right" on-down="rightdown" on-up="uphandler" style$="[[getButtonStyle(canvas.color.value)]]">right</button>
+                <button id="up" on-down="updown" on-up="uphandler" style$="[[getButtonStyle(canvas.color.value)]]">up</button>
+                <button id="down" on-down="downdown" on-up="uphandler" style$="[[getButtonStyle(canvas.color.value)]]" >down</button>
                 <canvas id="canvascontroller" on-track="draw"></canvas>
 
             </div>
@@ -79,7 +79,7 @@
                 </div>
                 <canvas id="canvas"></canvas>
                 <template is="dom-repeat" items="{{canvasOthers}}" >
-                    <div class="device" style$="[[getStyle(item.data.location.*, item.data.dimension.*, item)]]"></div>
+                    <div class="device" style$="[[getStyle(item.data.location.*, item.data.dimension.*, item.data.color.*, item)]]"></div>
                 </template>
 
             </div>
@@ -138,9 +138,6 @@
 
             .device{
                 position: absolute;
-                border: 2px solid red;
-                left: 300px;
-                top: 0;
             }
 
             #colorinput {
@@ -229,7 +226,7 @@
                 },
                 canvas: {
                     type: Object,
-                    value: function(){ return { dimension: { values : {height: 0, width: 0}}, location: {values: {top:0, left:0}}
+                    value: function(){ return { dimension: { values : {height: 0, width: 0}}, location: {values: {top:0, left:0}}, color: {value: "black"}
                     } },
                     notify: true
                 },
@@ -257,6 +254,7 @@
                     this.$.canvascontroller.style["width"] = data.values.width +"px";
                     this.$.canvascontroller.style["height"] = data.values.height +"px";
                     // we are setting this later, because the first synchronisation data is discarded (from controllers), not ideal behaviour, may need changing
+                    this.set("canvas.color.value", generateColor());
                     this.set("canvas.dimension.values", {width: window.innerWidth, height: window.innerHeight} );
                     this.set("canvas.location.values", {top: 0, left: 0} );
                 }
@@ -354,16 +352,22 @@
                 }
             },
 
-            getStyle: function(crl,crd, item){
+            getStyle: function(crl,crd, color, item){
+                console.log(color);
                 let location = item.data.location.values;
                 let dimension= item.data.dimension.values;
-                return "top: "+location.top +"px; left:" +location.left +"px; width: "
-                    +dimension.width +"px; height: " +dimension.height +"px;";
+                let canvascolor = item.data.color.value;
+                return "top: "+location.top +"px; left: " +location.left +"px; width: "
+                    +dimension.width +"px; height: " +dimension.height +"px; border: 2px solid " +canvascolor;
             },
 
             getStrokeStyle: function(color, stroke){
                  return "height:" +stroke +"px; background-color: "
                     +color;
+            },
+
+            getButtonStyle: function(color) {
+                return "background-color: " +color;
             },
 
             attached: function () {
@@ -401,6 +405,24 @@
 
         });
     });
+
+    /* Algorithm taken from http://stackoverflow.com/questions/43044/algorithm-to-randomly-generate-an-aesthetically-pleasing-color-palette */
+    let generateColor = function() {
+        let mix = {red: 255, green: 255, blue: 255};
+        let red = Math.random() * 256;
+        let green =  Math.random() * 256;
+        let blue =  Math.random() * 256;
+
+        // mix the color
+        if (mix != null) {
+            red = (red + mix.red) / 2;
+            green = (green + mix.green) / 2;
+            blue = (blue + mix.blue) / 2;
+        }
+
+
+        return "rgb(" +Math.floor(red) +", " +Math.floor(green) +", " +Math.floor(blue) +")";
+    }
 
 </script>
 
